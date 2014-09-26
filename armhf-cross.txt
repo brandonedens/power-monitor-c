@@ -1,0 +1,16 @@
+
+name = 'linux'
+c = 'arm-linux-gnueabihf-gcc'
+cpp = 'arm-linux-gnueabihf-g++'
+ar = 'arm-linux-gnueabihf-ar'
+strip = 'arm-linux-gnueabihf-strip'
+
+sizeof_int = 4
+sizeof_wchar_t = 4
+sizeof_void* = 4
+
+alignment_char = 1
+alignment_void* = 4
+alignment_double = 4
+
+has_function_printf = true
