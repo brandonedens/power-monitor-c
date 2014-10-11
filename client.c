@@ -31,6 +31,11 @@
 #include "consts.h"
 
 /*******************************************************************************
+ * Constants
+ */
+#define SAMPLES_PER_FILE (32768)
+
+/*******************************************************************************
  * Local Types
  */
 
@@ -154,6 +159,10 @@ void client_term(int sock)
 int main(int argc, char *argv[])
 {
 	FILE *fh = NULL;
+	if (argc != 2) {
+		fprintf(stderr, "Please specify file to write to.\n");
+		return EXIT_FAILURE;
+	}
 	if (argc == 2) {
 		fh = fopen(argv[1], "w");
 		if (NULL == fh) {
@@ -161,23 +170,32 @@ int main(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 	}
-	if (fh == NULL) {
-		fh = stdout;
-	}
 
 	int sock = client_init("225.1.1.1", 5555);
 
-	struct sample samples[SAMPLES_PER_CAPTURE];
-	while (true) {
-		size_t len = client_recv(sock, (uint8_t *)samples,
-				sizeof(samples));
-		assert(sizeof(samples) == len);
+	struct sample samples[SAMPLES_PER_FILE];
+	memset(samples, 0, sizeof(samples));
 
-		for (int i = 0; i < ARRAY_LEN(samples); i++) {
-			fprintf(fh, "%f %03.4f\n", samples[i].t.tv_sec +
-					samples[i].t.tv_nsec / NSEC_PER_SEC,
-					((105.84 / 4096) * samples[i].d) / 0.1);
-			fflush(fh);
+	struct sample *cap = samples;
+	while (true) {
+		size_t len = client_recv(sock, (uint8_t *)cap,
+				SAMPLES_PER_CAPTURE * sizeof(*cap));
+		assert(SAMPLES_PER_CAPTURE * sizeof(*cap) == len);
+		cap += SAMPLES_PER_CAPTURE;
+
+		if (cap >= &samples[SAMPLES_PER_FILE]) {
+			// Write out the file with all the known samples.
+			fh = fopen(argv[1], "w");
+			for (int i = 0; i < ARRAY_LEN(samples); i++) {
+				fprintf(fh, "%f %03.4f\n", samples[i].t.tv_sec +
+						samples[i].t.tv_nsec / NSEC_PER_SEC,
+						((105.84 / 4096) * samples[i].d) / 0.1);
+			}
+			fclose(fh);
+
+			// Shift room for the new samples.
+			memset(samples, 0, sizeof(samples));
+			cap = samples;
 		}
 	}
 	return EXIT_SUCCESS;
